@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=security_system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    networks:
+      - security_network
+
+  migrations:
+    build:
+      context: .
+      dockerfile: docker/migrations/Dockerfile
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=security_system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - security_network
+
+  face_recognition:
+    build:
+      context: .
+      dockerfile: docker/face_recognition/Dockerfile
+    volumes:
+      - /dev/video0:/dev/video0  # Mount camera device
+    environment:
+      - CAMERA_ID=0
+      - CONFIDENCE_THRESHOLD=0.6
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=security_system
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"  # If your app exposes a web interface
+    networks:
+      - security_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  security_network:
+    driver: bridge 
