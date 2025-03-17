@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Logs - Smart Security System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-list-alt me-2"></i>Access Logs
+            </div>
+            <div class="card-body">
+                {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Access Time</th>
+                                <th>Access Type</th>
+                                <th>Confidence</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log, user_name in logs %}
+                            <tr>
+                                <td>{{ log.id }}</td>
+                                <td>{{ user_name }}</td>
+                                <td>{{ log.access_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ log.access_type }}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar {% if log.confidence >= 0.7 %}bg-success{% elif log.confidence >= 0.6 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ log.confidence * 100 }}%;" 
+                                             aria-valuenow="{{ log.confidence * 100 }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            {{ "%.2f"|format(log.confidence * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if log.status == 'success' %}
+                                    <span class="badge bg-success">Success</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Failed</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No access logs available yet.
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer text-muted">
+                Showing most recent {{ logs|length }} access logs
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

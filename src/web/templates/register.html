@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Register New User - Facial Recognition System{% endblock %}
+
+{% block custom_css %}
+.tab-content {
+    padding: 20px 0;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    background-color: #fff;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+}
+.upload-preview {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: none;
+}
+.method-tabs {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+/* Enhanced tab styling */
+.method-tabs .nav-link {
+    font-size: 1.1rem;
+    font-weight: 500;
+    padding: 12px 20px;
+    margin-right: 5px;
+    border: 2px solid #dee2e6;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background-color: #e2e6ea;  /* Light gray for inactive */
+    color: #495057;
+    transition: all 0.3s ease;
+    position: relative;
+}
+.method-tabs .nav-link:hover {
+    background-color: #ced4da;
+    color: #212529;
+    transform: translateY(-3px);
+}
+.method-tabs .nav-link.active {
+    background-color: #0d6efd;  /* Bright blue for active */
+    color: white;
+    border-color: #0d6efd;
+    box-shadow: 0 -2px 10px rgba(13,110,253,0.3);
+}
+.method-tabs .nav-link i {
+    font-size: 1.2rem;
+    margin-right: 8px;
+}
+.method-tabs .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: #fff;
+    opacity: 0;
+}
+.method-tabs .nav-link.active::after {
+    opacity: 1;
+}
+.tab-selection-hint {
+    display: block;
+    text-align: left;
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+.tab-badge {
+    background-color: rgba(255,255,255,0.3);
+    color: inherit;
+    padding: 2px 6px;
+    font-size: 0.8rem;
+    border-radius: 10px;
+    margin-left: 5px;
+    font-weight: normal;
+}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-user-plus me-2"></i>Register New User
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+                </div>
+                {% endif %}
+                
+                <form id="register-form" method="post" action="{{ url_for('register') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Face Image</label>
+                        <span class="tab-selection-hint">Select one of the following methods to provide a face image:</span>
+                        
+                        <!-- Image capture method selector -->
+                        <ul class="nav nav-tabs method-tabs" id="imageCaptureMethod" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab" aria-controls="camera" aria-selected="true">
+                                    <i class="fas fa-camera me-1"></i> Use Camera <span class="tab-badge">Webcam</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab" aria-controls="upload" aria-selected="false">
+                                    <i class="fas fa-upload me-1"></i> Upload Image <span class="tab-badge">From Device</span>
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content">
+                            <!-- Camera Capture Tab -->
+                            <div class="tab-pane fade show active" id="camera" role="tabpanel" aria-labelledby="camera-tab">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="video-container mb-3">
+                                            <video id="video" width="100%" height="auto" autoplay></video>
+                                        </div>
+                                        <button type="button" id="capture" class="btn btn-primary mb-3">
+                                            <i class="fas fa-camera me-2"></i>Capture Image
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="video-container mb-3">
+                                            <canvas id="canvas" width="320" height="240" style="display: none;"></canvas>
+                                            <img id="captured-image" class="img-fluid" src="" alt="Captured image will appear here">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Upload Tab -->
+                            <div class="tab-pane fade" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+                                <div class="mb-3">
+                                    <label for="upload-image" class="form-label">Select Image File</label>
+                                    <input class="form-control" type="file" id="upload-image" name="upload_image" accept="image/*">
+                                    <div class="form-text">Upload a clear photo of the face. JPG, PNG, or WEBP formats are preferred.</div>
+                                </div>
+                                <div class="text-center">
+                                    <img id="upload-preview" class="upload-preview" alt="Image preview">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden input for webcam captured image -->
+                        <input type="hidden" id="webcam-image" name="webcam_image">
+                        <input type="hidden" id="image-source" name="image_source" value="webcam">
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('users') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left me-2"></i>Cancel
+                        </a>
+                        <button type="submit" id="submit-btn" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>Register
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // DOM Elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const capturedImage = document.getElementById('captured-image');
+    const captureButton = document.getElementById('capture');
+    const submitButton = document.getElementById('submit-btn');
+    const webcamImageInput = document.getElementById('webcam-image');
+    const uploadImageInput = document.getElementById('upload-image');
+    const uploadPreview = document.getElementById('upload-preview');
+    const imageSourceInput = document.getElementById('image-source');
+    const context = canvas.getContext('2d');
+    let stream = null;
+    
+    // Tab change handlers
+    document.getElementById('camera-tab').addEventListener('click', function() {
+        imageSourceInput.value = 'webcam';
+        startCamera();
+        validateForm();
+    });
+    
+    document.getElementById('upload-tab').addEventListener('click', function() {
+        imageSourceInput.value = 'upload';
+        stopCamera();
+        validateForm();
+    });
+    
+    // Access webcam
+    function startCamera() {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(videoStream) {
+                    stream = videoStream;
+                    video.srcObject = stream;
+                    video.play();
+                })
+                .catch(function(error) {
+                    console.error("Error accessing webcam: ", error);
+                    alert("Error accessing webcam. Please use the upload option instead.");
+                    document.getElementById('upload-tab').click();
+                });
+        } else {
+            alert("Your browser doesn't support webcam access. Please use the upload option.");
+            document.getElementById('upload-tab').click();
+        }
+    }
+    
+    // Stop camera when switching to upload
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => {
+                track.stop();
+            });
+            stream = null;
+        }
+    }
+    
+    // Capture image from webcam
+    captureButton.addEventListener('click', function() {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageDataUrl = canvas.toDataURL('image/jpeg');
+        capturedImage.src = imageDataUrl;
+        capturedImage.style.display = 'block';
+        canvas.style.display = 'none';
+        webcamImageInput.value = imageDataUrl;
+        validateForm();
+    });
+    
+    // Handle file upload preview
+    uploadImageInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadPreview.src = e.target.result;
+                uploadPreview.style.display = 'block';
+                validateForm();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Validate form based on the active tab
+    function validateForm() {
+        const activeTab = document.querySelector('.nav-link.active').id;
+        
+        if (activeTab === 'camera-tab') {
+            // When using camera, require a captured image
+            submitButton.disabled = !webcamImageInput.value;
+        } else {
+            // When using upload, require a file
+            submitButton.disabled = !uploadImageInput.files.length;
+        }
+    }
+    
+    // Initialize on page load
+    startCamera();
+    validateForm();
+</script>
+{% endblock %} 

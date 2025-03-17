@@ -1,30 +1,32 @@
 import sys
 import os
-import time
+from PyQt5.QtWidgets import QApplication
+from src.services.gui import MainWindow
 from src.utils.database import db
 
 def main():
     print("Starting Smart Security System")
     
-    # Test database connection
-    print("Testing database connection...")
     try:
-        session = db.get_session()
-        print("Database connection successful!")
-        session.close()
+        # Get configuration from environment variables or use defaults
+        camera_id = int(os.getenv('CAMERA_ID', '0'))
+        confidence_threshold = float(os.getenv('CONFIDENCE_THRESHOLD', '0.6'))
+        
+        # Create the application
+        app = QApplication(sys.argv)
+        
+        # Create and show the main window
+        window = MainWindow(
+            camera_id=camera_id,
+            confidence_threshold=confidence_threshold
+        )
+        window.show()
+        
+        # Start the event loop
+        return app.exec_()
     except Exception as e:
-        print(f"Error connecting to database: {e}")
-        sys.exit(1)
-    
-    # Keep the container running
-    print("System is running. Press Ctrl+C to exit.")
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Shutting down...")
-    
-    return 0
+        print(f"Error starting application: {e}")
+        return 1
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())
