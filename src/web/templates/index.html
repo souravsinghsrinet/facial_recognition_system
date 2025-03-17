@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Smart Security System{% endblock %}
+
+{% block custom_css %}
+.upload-btn {
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+.upload-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 15px;
+    padding: 15px;
+    border-top: 1px solid #ddd;
+}
+.upload-result {
+    margin-top: 20px;
+    display: none;
+}
+.result-image {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-video me-2"></i>Live Video Feed
+            </div>
+            <div class="card-body p-0">
+                {% if camera_error %}
+                <div class="alert alert-danger m-3">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Camera Error</h5>
+                    <p>{{ camera_error }}</p>
+                    <hr>
+                    <p class="mb-0"><strong>To fix this issue:</strong></p>
+                    <ul>
+                        <li>Make sure your browser has permission to access the camera</li>
+                        <li>Check if another application is using the camera</li>
+                        <li>Use the Upload Mode below instead of live camera feed</li>
+                    </ul>
+                </div>
+                {% endif %}
+                <div class="video-container">
+                    <img src="{{ url_for('video_feed') }}" class="video-feed" alt="Video Feed">
+                </div>
+                
+                {% if use_upload_mode or camera_error %}
+                <div class="upload-container">
+                    <h5><i class="fas fa-upload me-2"></i>Upload Image for Face Recognition</h5>
+                    <p class="text-muted">Upload an image to check if it contains any registered faces</p>
+                    
+                    <form id="upload-form" class="w-100">
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="image-upload" accept="image/*">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search me-2"></i>Analyze
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div id="upload-result" class="upload-result w-100">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <i class="fas fa-image me-2"></i>Recognition Results
+                            </div>
+                            <div class="card-body">
+                                <img id="result-image" class="result-image" src="" alt="Processed Image">
+                                <div id="recognition-results"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bell me-2"></i>Recent Alerts
+            </div>
+            <div class="card-body">
+                <div id="recent-alerts" class="alert-container">
+                    <!-- Alerts will be added dynamically via JavaScript -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>System is running. Recognition events will appear here.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-cog me-2"></i>System Status
+            </div>
+            <div class="card-body">
+                <p><strong>Camera:</strong> 
+                    {% if use_upload_mode %}
+                    <span class="badge bg-warning">Upload Mode</span>
+                    {% elif camera_error %}
+                    <span class="badge bg-danger">Error</span>
+                    {% else %}
+                    <span class="badge bg-success">Active</span>
+                    {% endif %}
+                </p>
+                <p><strong>Face Recognition:</strong> 
+                    <span class="badge bg-success">Running</span>
+                </p>
+                <p><strong>Confidence Threshold:</strong> <span class="badge bg-primary">{{ confidence_threshold }}</span></p>
+                <p><strong>Database:</strong> <span class="badge bg-success">Connected</span></p>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-2"></i>Stats
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6 text-center">
+                        <h3 id="access-count">-</h3>
+                        <p>Access Granted</p>
+                    </div>
+                    <div class="col-6 text-center">
+                        <h3 id="denied-count">-</h3>
+                        <p>Access Denied</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden field to pass server-side data to JavaScript -->
+<input type="hidden" id="enable-upload" value="{{ 'true' if use_upload_mode or camera_error else 'false' }}">
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add dynamic stats
+    let accessCount = 0;
+    let deniedCount = 0;
+    
+    socket.on('access_granted', () => {
+        accessCount++;
+        document.getElementById('access-count').textContent = accessCount;
+    });
+    
+    socket.on('access_denied', () => {
+        deniedCount++;
+        document.getElementById('denied-count').textContent = deniedCount;
+    });
+    
+    // Check if upload form should be enabled
+    const shouldEnableUpload = document.getElementById('enable-upload').value === 'true';
+    
+    if (shouldEnableUpload) {
+        // File upload handling
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('image-upload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select an image file first');
+                return;
+            }
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            // Show loading indicator
+            document.getElementById('recognition-results').innerHTML = 
+                '<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status">' +
+                '<span class="visually-hidden">Loading...</span></div></div>' +
+                '<p class="text-center mt-2">Processing image...</p>';
+            
+            document.getElementById('upload-result').style.display = 'block';
+            
+            // Send the image for processing
+            fetch('/upload_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display the processed image
+                document.getElementById('result-image').src = 'data:image/jpeg;base64,' + data.processed_image;
+                
+                // Show recognition results
+                let resultsHtml = '<div class="alert ';
+                
+                if (data.face_count === 0) {
+                    resultsHtml += 'alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No faces detected in the image';
+                } else {
+                    let recognizedCount = data.recognized_names.filter(name => name !== 'Unknown').length;
+                    
+                    if (recognizedCount > 0) {
+                        resultsHtml += 'alert-success"><i class="fas fa-check-circle me-2"></i>';
+                    } else {
+                        resultsHtml += 'alert-danger"><i class="fas fa-times-circle me-2"></i>';
+                    }
+                    
+                    resultsHtml += `Detected ${data.face_count} face(s), recognized ${recognizedCount}`;
+                }
+                
+                resultsHtml += '</div>';
+                
+                // Add details for each face if any were found
+                if (data.face_count > 0) {
+                    resultsHtml += '<ul class="list-group">';
+                    
+                    for (let i = 0; i < data.face_count; i++) {
+                        const name = data.recognized_names[i];
+                        const confidence = (data.confidences[i] * 100).toFixed(2);
+                        
+                        resultsHtml += '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                        resultsHtml += `<span>${name}</span>`;
+                        
+                        // Add confidence badge with appropriate color
+                        let badgeClass = 'bg-danger';
+                        if (confidence >= 70) badgeClass = 'bg-success';
+                        else if (confidence >= 60) badgeClass = 'bg-warning';
+                        
+                        resultsHtml += `<span class="badge ${badgeClass}">${confidence}%</span>`;
+                        resultsHtml += '</li>';
+                    }
+                    
+                    resultsHtml += '</ul>';
+                }
+                
+                document.getElementById('recognition-results').innerHTML = resultsHtml;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('recognition-results').innerHTML = 
+                    '<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>' +
+                    'Error processing image. Please try again.</div>';
+            });
+        });
+    }
+</script>
+{% endblock %} 

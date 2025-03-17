@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Security System{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            padding-top: 60px;
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background-color: #343a40;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+        .nav-link:hover {
+            color: white !important;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .video-feed {
+            width: 100%;
+            height: auto;
+        }
+        .card {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+            border-top-left-radius: 8px !important;
+            border-top-right-radius: 8px !important;
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+        .success {
+            background-color: #28a745;
+        }
+        .danger {
+            background-color: #dc3545;
+        }
+        .alert-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .alert {
+            margin-bottom: 10px;
+        }
+        .badge-access {
+            font-size: 0.8rem;
+            padding: 5px 10px;
+        }
+        .success-badge {
+            background-color: #28a745;
+        }
+        .failure-badge {
+            background-color: #dc3545;
+        }
+    </style>
+    
+    <!-- Custom CSS for individual pages -->
+    <style>
+        {% block custom_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-shield-alt me-2"></i>Smart Security System
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                            <i class="fas fa-video me-1"></i> Live Feed
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/users' %}active{% endif %}" href="/users">
+                            <i class="fas fa-users me-1"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/access_logs' %}active{% endif %}" href="/access_logs">
+                            <i class="fas fa-list-alt me-1"></i> Access Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/register' %}active{% endif %}" href="/register">
+                            <i class="fas fa-user-plus me-1"></i> Register
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="notification" class="notification">
+        <span id="notification-message"></span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        
+        function showNotification(message, isSuccess) {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            
+            notification.className = 'notification';
+            notification.classList.add(isSuccess ? 'success' : 'danger');
+            notificationMessage.textContent = message;
+            
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 5000);
+        }
+        
+        socket.on('access_granted', (data) => {
+            const message = `Access granted to ${data.name} (${(data.confidence * 100).toFixed(2)}%)`;
+            showNotification(message, true);
+            
+            // Add to recent alerts if on home page
+            const recentAlerts = document.getElementById('recent-alerts');
+            if (recentAlerts) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success';
+                alertDiv.innerHTML = `
+                    <strong>${data.timestamp}</strong>: Access granted to 
+                    <strong>${data.name}</strong> 
+                    <span class="badge badge-access success-badge">${(data.confidence * 100).toFixed(2)}%</span>
+                `;
+                recentAlerts.prepend(alertDiv);
+                
+                // Limit to 5 alerts
+                if (recentAlerts.children.length > 5) {
+                    recentAlerts.removeChild(recentAlerts.lastChild);
+                }
+            }
+        });
+        
+        socket.on('access_denied', (data) => {
+            const message = `Access denied! (${(data.confidence * 100).toFixed(2)}%)`;
+            showNotification(message, false);
+            
+            // Add to recent alerts if on home page
+            const recentAlerts = document.getElementById('recent-alerts');
+            if (recentAlerts) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.innerHTML = `
+                    <strong>${data.timestamp}</strong>: Access denied 
+                    <span class="badge badge-access failure-badge">${(data.confidence * 100).toFixed(2)}%</span>
+                `;
+                recentAlerts.prepend(alertDiv);
+                
+                // Limit to 5 alerts
+                if (recentAlerts.children.length > 5) {
+                    recentAlerts.removeChild(recentAlerts.lastChild);
+                }
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

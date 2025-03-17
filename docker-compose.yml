@@ -42,22 +42,28 @@ services:
       context: .
       dockerfile: docker/face_recognition/Dockerfile
     volumes:
-      - /dev/video0:/dev/video0  # Mount camera device
+      # NOTE: Camera access through Docker doesn't work on macOS
+      # On Linux, uncomment this line to use camera directly:
+      # - /dev/video0:/dev/video0 
+      - ./data:/app/data  # For sharing data between host and container
     environment:
       - CAMERA_ID=0
-      - CONFIDENCE_THRESHOLD=0.6
+      - CONFIDENCE_THRESHOLD=0.5
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=security_system
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+      # Upload mode is enabled by default for better macOS compatibility
+      # This allows using uploaded images for face recognition instead of camera
+      - USE_UPLOAD_MODE=true
     depends_on:
       postgres:
         condition: service_healthy
       migrations:
         condition: service_completed_successfully
     ports:
-      - "8080:8080"  # If your app exposes a web interface
+      - "8080:8080"  # Expose web interface port
     networks:
       - security_network
 
@@ -67,4 +73,4 @@ volumes:
 
 networks:
   security_network:
-    driver: bridge 
+    driver: bridge
